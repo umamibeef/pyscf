@@ -17,6 +17,7 @@
  */
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <complex.h>
 #include <assert.h>
 #include "config.h"
@@ -65,7 +66,7 @@ static void _ft_fill_k(int (*intor)(), int (*eval_aopair)(), void (*eval_gz)(),
         int shls[2] = {ish, jsh};
         int dims[2] = {di, dj};
         double complex *bufk = buf;
-        double complex *bufL = buf + dij*blksize * comp * nkpts;
+        double complex *bufL = buf + ((size_t)dij) * blksize * comp * nkpts;
         double complex *pbuf;
         int gs0, gs1, dg, dijg;
         int jL0, jLcount, jL;
@@ -75,9 +76,7 @@ static void _ft_fill_k(int (*intor)(), int (*eval_aopair)(), void (*eval_gz)(),
                 gs1 = MIN(gs0+blksize, nGv);
                 dg = gs1 - gs0;
                 dijg = dij * dg * comp;
-                for (i = 0; i < dijg*nkpts; i++) {
-                        bufk[i] = 0;
-                }
+                NPzset0(bufk, ((size_t)dijg) * nkpts);
 
                 for (jL0 = 0; jL0 < nimgs; jL0 += IMGBLK) {
                         jLcount = MIN(IMGBLK, nimgs-jL0);
@@ -127,15 +126,15 @@ static void _ft_fill_nk1(int (*intor)(), int (*eval_aopair)(), void (*eval_gz)()
 
         const int di = ao_loc[ish+1] - ao_loc[ish];
         const int dj = ao_loc[jsh+1] - ao_loc[jsh];
-        const int dij = di * dj;
+        const size_t dij = di * dj;
 
         int jptrxyz = atm[PTR_COORD+bas[ATOM_OF+jsh*BAS_SLOTS]*ATM_SLOTS];
         int shls[2] = {ish, jsh};
         int dims[2] = {di, dj};
         double complex *bufk = buf;
         double complex *bufL = buf + dij*blksize * comp;
-        int gs0, gs1, dg, jL, i;
-        size_t dijg;
+        int gs0, gs1, dg, jL;
+        size_t i, dijg;
 
         for (gs0 = 0; gs0 < nGv; gs0 += blksize) {
                 gs1 = MIN(gs0+blksize, nGv);
@@ -197,7 +196,7 @@ static void _ft_bvk_k(int (*intor)(), int (*eval_aopair)(), void (*eval_gz)(),
         int shls[2] = {ish, jsh};
         int dims[2] = {di, dj};
         double complex *buf_rs = buf;
-        double complex *bufL = buf + dij * blksize * comp * nkpts;
+        double complex *bufL = buf + ((size_t)dij) * blksize * comp * nkpts;
         double complex *pbuf;
         int gs0, gs1, dg, dijg;
         int jL, i;
@@ -206,9 +205,7 @@ static void _ft_bvk_k(int (*intor)(), int (*eval_aopair)(), void (*eval_gz)(),
                 gs1 = MIN(gs0+blksize, nGv);
                 dg = gs1 - gs0;
                 dijg = dij * dg * comp;
-                for (i = 0; i < dijg*bvk_nimgs; i++) {
-                        bufL[i] = 0;
-                }
+                NPzset0(bufL, ((size_t)dijg) * bvk_nimgs);
 
                 for (jL = 0; jL < nimgs; jL++) {
                         if (!ovlp_mask[jL]) {
@@ -269,8 +266,7 @@ static void _ft_bvk_nk1(int (*intor)(), int (*eval_aopair)(), void (*eval_gz)(),
         int dims[2] = {di, dj};
         double complex fac;
         double complex *buf_rs = buf + dij * blksize * comp;
-        int gs0, gs1, dg, jL, i;
-        size_t dijg;
+        int gs0, gs1, dg, jL, i, dijg;
 
         for (gs0 = 0; gs0 < nGv; gs0 += blksize) {
                 gs1 = MIN(gs0+blksize, nGv);
@@ -325,7 +321,7 @@ static void sort_s1(double complex *out, double complex *in,
         const int ip = ao_loc[ish] - ao_loc[ish0];
         const int jp = ao_loc[jsh] - ao_loc[jsh0];
         const int dg = gs1 - gs0;
-        const size_t dijg = di * dj * dg;
+        const int dijg = di * dj * dg;
         out += (ip * naoj + jp) * NGv + gs0;
 
         int i, j, n, ic, kk;
@@ -364,7 +360,7 @@ static void sort_s2_igtj(double complex *out, double complex *in,
         const int dg = gs1 - gs0;
         const size_t dijg = dij * dg;
         const int jp = ao_loc[jsh] - ao_loc[jsh0];
-        out += (ao_loc[ish]*(ao_loc[ish]+1)/2-off0 + jp) * NGv + gs0;
+        out += (((size_t)ao_loc[ish])*(ao_loc[ish]+1)/2-off0 + jp) * NGv + gs0;
 
         const int ip1 = ao_loc[ish] + 1;
         int i, j, n, ic, kk;
@@ -403,9 +399,9 @@ static void sort_s2_ieqj(double complex *out, double complex *in,
         const int dj = ao_loc[jsh+1] - ao_loc[jsh];
         const int dij = di * dj;
         const int dg = gs1 - gs0;
-        const size_t dijg = dij * dg;
+        const int dijg = dij * dg;
         const int jp = ao_loc[jsh] - ao_loc[jsh0];
-        out += (ao_loc[ish]*(ao_loc[ish]+1)/2-off0 + jp) * NGv + gs0;
+        out += (((size_t)ao_loc[ish])*(ao_loc[ish]+1)/2-off0 + jp) * NGv + gs0;
 
         const int ip1 = ao_loc[ish] + 1;
         int i, j, n, ic, kk;
@@ -700,10 +696,14 @@ void PBC_ft_latsum_drv(int (*intor)(), void (*eval_gz)(), void (*fill)(),
         int i, j, ij;
         int nenv = PBCsizeof_env(shls_slice, atm, natm, bas, nbas, env);
         nenv = MAX(nenv, PBCsizeof_env(shls_slice+2, atm, natm, bas, nbas, env));
-        double *env_loc = malloc(sizeof(double)*nenv);
+        double *env_loc = malloc(sizeof(double)*nenv+400);
         NPdcopy(env_loc, env, nenv);
         size_t count = nkpts + IMGBLK;
-        double complex *buf = malloc(sizeof(double complex)*count*INTBUFMAX*comp);
+        double complex *buf = malloc(sizeof(double complex)*count*INTBUFMAX*comp+400);
+        if (buf == NULL) {
+                fprintf(stderr, "buf = malloc(%zu) falied in PBC_ft_latsum_drv\n",
+                        sizeof(double complex)*count*INTBUFMAX*comp+400);
+        }
 #pragma omp for schedule(dynamic)
         for (ij = 0; ij < nish*njsh; ij++) {
                 i = ij / njsh;
@@ -753,10 +753,14 @@ void PBC_ft_bvk_drv(int (*intor)(), void (*eval_gz)(), void (*fill)(),
         int i, j, ij;
         int nenv = PBCsizeof_env(shls_slice, atm, natm, bas, nbas, env);
         nenv = MAX(nenv, PBCsizeof_env(shls_slice+2, atm, natm, bas, nbas, env));
-        double *env_loc = malloc(sizeof(double)*nenv);
+        double *env_loc = malloc(sizeof(double)*nenv+400);
         NPdcopy(env_loc, env, nenv);
         size_t count = nkpts + bvk_nimgs;
-        double complex *buf = malloc(sizeof(double complex)*count*INTBUFMAX*comp);
+        double complex *buf = malloc(sizeof(double complex)*count*INTBUFMAX*comp+400);
+        if (buf == NULL) {
+                fprintf(stderr, "buf = malloc(%zu) falied in PBC_ft_bvk_drv\n",
+                        sizeof(double complex)*count*INTBUFMAX*comp+400);
+        }
 #pragma omp for schedule(dynamic)
         for (ij = 0; ij < nish*njsh; ij++) {
                 i = ij / njsh;

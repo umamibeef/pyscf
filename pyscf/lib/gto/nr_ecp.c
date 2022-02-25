@@ -31,7 +31,6 @@
 #define ECP_LMAX        5
 //#define PTR_EXP         5
 //#define PTR_COEFF       6
-#define CART_MAX        128 // ~ lmax = 14
 #define SIM_ZERO        1e-50
 #define EXPCUTOFF       39   // 1e-17
 #define CUTOFF          460  // ~ 1e200
@@ -4590,7 +4589,7 @@ static int _offset_cart[] = {0, 1, 4, 10, 20, 35, 56, 84, 120,
  * Obtained by the function below for l = 0..4
  *
 def angular_moment_matrix(l):
-    lz = numpy.diag(numpy.arange(-l, l+1, dtype=numpy.complex))
+    lz = numpy.diag(numpy.arange(-l, l+1, dtype=numpy.complex128))
     lx = numpy.zeros_like(lz)
     ly = numpy.zeros_like(lz)
     for mi in range(-l, l+1):
@@ -6078,7 +6077,8 @@ int ECPscalar_cache_size(int comp, int *shls,
         size2 += MAX(di1*di1*di1*lilc1, dj1*dj1*dj1*ljlc1) * (ECP_LMAX*2 + 1);
         int size = nfi*nfj*(nci*ncj+2) * comp;
         size += nci*ncj*(li+lj+1)*(li+ECP_LMAX+1)*(lj+ECP_LMAX+1);
-        size += MAX(size1, size2);
+        //size += MAX(size1, size2);  bugs in bufsize estimation, not sure where's the error
+        size += size1 + size2 + 120;
         size += nfi*(ECP_LMAX*2+1)*(lj+ECP_LMAX+1);
         size += npi*npj*d2;
         size += d3;

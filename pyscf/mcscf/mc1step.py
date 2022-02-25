@@ -740,7 +740,6 @@ class CASSCF(casci.CASCI):
         nvir = self.mo_coeff.shape[1] - ncore - ncas
         log.info('CAS (%de+%de, %do), ncore = %d, nvir = %d',
                  self.nelecas[0], self.nelecas[1], ncas, ncore, nvir)
-        assert(nvir >= 0 and ncore >= 0 and ncas >= 0)
         if self.frozen is not None:
             log.info('frozen orbitals %s', str(self.frozen))
         log.info('max_cycle_macro = %d', self.max_cycle_macro)
@@ -751,7 +750,7 @@ class CASSCF(casci.CASCI):
         log.info('augmented hessian ah_max_cycle = %d', self.ah_max_cycle)
         log.info('augmented hessian ah_conv_tol = %g', self.ah_conv_tol)
         log.info('augmented hessian ah_linear dependence = %g', self.ah_lindep)
-        log.info('augmented hessian ah_level shift = %d', self.ah_level_shift)
+        log.info('augmented hessian ah_level shift = %g', self.ah_level_shift)
         log.info('augmented hessian ah_start_tol = %g', self.ah_start_tol)
         log.info('augmented hessian ah_start_cycle = %d', self.ah_start_cycle)
         log.info('augmented hessian ah_grad_trust_region = %g', self.ah_grad_trust_region)
@@ -805,8 +804,7 @@ To enable the solvent model for CASSCF, the following code needs to be called
             self.mo_coeff = mo_coeff
         if callback is None: callback = self.callback
 
-        if self.verbose >= logger.WARN:
-            self.check_sanity()
+        self.check_sanity()
         self.dump_flags()
 
         self.converged, self.e_tot, self.e_cas, self.ci, \
@@ -1255,6 +1253,12 @@ To enable the solvent model for CASSCF, the following code needs to be called
     def nuc_grad_method(self):
         from pyscf.grad import casscf
         return casscf.Gradients(self)
+
+    def _state_average_nuc_grad_method (self, state=None):
+        # Hook for addons.state_average. Every child method of CASSCF will
+        # probably need to overwrite this.
+        from pyscf.grad import sacasscf as sacasscf_grad
+        return sacasscf_grad.Gradients (self, state=state)
 
     def newton(self):
         from pyscf.mcscf import newton_casscf

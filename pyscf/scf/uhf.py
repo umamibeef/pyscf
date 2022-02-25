@@ -40,10 +40,7 @@ def init_guess_by_minao(mol, breaksym=BREAKSYM):
     dm = hf.init_guess_by_minao(mol)
     dma = dmb = dm*.5
     if breaksym:
-        #remove off-diagonal part of beta DM
-        dmb = numpy.zeros_like(dma)
-        for b0, b1, p0, p1 in mol.aoslice_by_atom():
-            dmb[p0:p1,p0:p1] = dma[p0:p1,p0:p1]
+        dma, dmb = _break_dm_spin_symm(mol, (dma, dmb))
     return numpy.array((dma,dmb))
 
 def init_guess_by_1e(mol, breaksym=BREAKSYM):
@@ -52,9 +49,9 @@ def init_guess_by_1e(mol, breaksym=BREAKSYM):
 def init_guess_by_atom(mol, breaksym=BREAKSYM):
     dm = hf.init_guess_by_atom(mol)
     dma = dmb = dm*.5
-    if breaksym:
+    if mol.spin == 0 and breaksym:
         #Add off-diagonal part for alpha DM
-        dma = mol.intor('int1e_ovlp') * 1e-2
+        dma = mol.intor_symmetric('int1e_ovlp') * 1e-2
         for b0, b1, p0, p1 in mol.aoslice_by_atom():
             dma[p0:p1,p0:p1] = dmb[p0:p1,p0:p1]
     return numpy.array((dma,dmb))
@@ -119,6 +116,16 @@ def init_guess_by_chkfile(mol, chkfile_name, project=None):
             mo = mo[0]
         dm = make_rdm1([fproj(mo[0]),fproj(mo[1])], mo_occ)
     return dm
+
+def _break_dm_spin_symm(mol, dm):
+    dma, dmb = dm
+    # For spin polarized system, no need to manually break spin symmetry
+    if mol.spin == 0 and abs(dma - dmb).max() < 1e-2:
+        #remove off-diagonal part of beta DM
+        dmb = numpy.zeros_like(dma)
+        for b0, b1, p0, p1 in mol.aoslice_by_atom():
+            dmb[p0:p1,p0:p1] = dma[p0:p1,p0:p1]
+    return dma, dmb
 
 def get_init_guess(mol, key='minao'):
     return UHF(mol).get_init_guess(mol, key)
@@ -805,9 +812,6 @@ class UHF(hf.SCF):
         user_set_breaksym = getattr(self, "init_guess_breaksym", None)
         if user_set_breaksym is not None:
             breaksym = user_set_breaksym
-        # For spin polarized system, no need to manually break spin symmetry
-        if mol.spin != 0:
-            breaksym = False
         return init_guess_by_atom(mol, breaksym)
 
     def init_guess_by_huckel(self, mol=None, breaksym=BREAKSYM):
@@ -821,13 +825,9 @@ class UHF(hf.SCF):
         mo_coeff = (mo_coeff, mo_coeff)
         mo_occ = self.get_occ(mo_energy, mo_coeff)
         dma, dmb = self.make_rdm1(mo_coeff, mo_occ)
-        if mol.spin == 0 and breaksym:
-            #remove off-diagonal part of beta DM
-            dmb = numpy.zeros_like(dma)
-            for b0, b1, p0, p1 in mol.aoslice_by_atom():
-                dmb[p0:p1,p0:p1] = dma[p0:p1,p0:p1]
+        if breaksym:
+            dma, dmb = _break_dm_spin_symm(mol, (dma, dmb))
         return numpy.array((dma,dmb))
-
 
     def init_guess_by_1e(self, mol=None, breaksym=BREAKSYM):
         if mol is None: mol = self.mol
@@ -840,11 +840,8 @@ class UHF(hf.SCF):
         mo_energy, mo_coeff = self.eig((h1e,h1e), s1e)
         mo_occ = self.get_occ(mo_energy, mo_coeff)
         dma, dmb = self.make_rdm1(mo_coeff, mo_occ)
-        if mol.spin == 0 and breaksym:
-            #remove off-diagonal part of beta DM
-            dmb = numpy.zeros_like(dma)
-            for b0, b1, p0, p1 in mol.aoslice_by_atom():
-                dmb[p0:p1,p0:p1] = dma[p0:p1,p0:p1]
+        if breaksym:
+            dma, dmb = _break_dm_spin_symm(mol, (dma, dmb))
         return numpy.array((dma,dmb))
 
     def init_guess_by_chkfile(self, chkfile=None, project=None):
@@ -960,9 +957,10 @@ class UHF(hf.SCF):
     def stability(self,
                   internal=getattr(__config__, 'scf_stability_internal', True),
                   external=getattr(__config__, 'scf_stability_external', False),
-                  verbose=None):
+                  verbose=None,
+                  return_status=False):
         '''
-        Stability analysis for RHF/RKS method.
+        Stability analysis for UHF/UKS method.
 
         See also pyscf.scf.stability.uhf_stability function.
 
@@ -975,14 +973,22 @@ class UHF(hf.SCF):
             external : bool
                 External stability. Including the UHF -> GHF and real -> complex
                 stability analysis.
+            return_status: bool
+                Whether to return `stable_i` and `stable_e`
 
         Returns:
-            New orbitals that are more close to the stable condition.  The return
-            value includes two set of orbitals.  The first corresponds to the
-            internal stability and the second corresponds to the external stability.
+            If return_status is False (default), the return value includes
+            two set of orbitals, which are more close to the stable condition.
+            The first corresponds to the internal stability
+            and the second corresponds to the external stability.
+
+            Else, another two boolean variables (indicating current status:
+            stable or unstable) are returned.
+            The first corresponds to the internal stability
+            and the second corresponds to the external stability.
         '''
         from pyscf.scf.stability import uhf_stability
-        return uhf_stability(self, internal, external, verbose)
+        return uhf_stability(self, internal, external, verbose, return_status)
 
     def nuc_grad_method(self):
         from pyscf.grad import uhf

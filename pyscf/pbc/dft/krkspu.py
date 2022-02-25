@@ -101,7 +101,7 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
                 P_k = rdm1_lo[k][U_mesh]
                 SC = np.dot(S_k, C_k)
                 vxc[k] += mdot(SC, (np.eye(P_k.shape[-1]) - P_k)
-                               * (val * 0.5), SC.conj().T)
+                               * (val * 0.5), SC.conj().T).astype(vxc[k].dtype,copy=False)
                 E_U += weight[k] * (val * 0.5) * (P_k.trace() - np.dot(P_k, P_k).trace() * 0.5)
                 if not is_ibz:
                     P_loc += P_k

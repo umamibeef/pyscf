@@ -777,7 +777,6 @@ class CASSCF(mc1step.CASSCF):
         nvir = self.mo_coeff.shape[1] - ncore - ncas
         log.info('CAS (%de+%de, %do), ncore = %d, nvir = %d',
                  self.nelecas[0], self.nelecas[1], self.ncas, ncore, nvir)
-        assert(nvir > 0 and ncore > 0 and self.ncas > 0)
         if self.frozen is not None:
             log.info('frozen orbitals %s', str(self.frozen))
         log.info('max_cycle_macro = %d', self.max_cycle_macro)
@@ -788,7 +787,7 @@ class CASSCF(mc1step.CASSCF):
         log.info('augmented hessian ah_max_cycle = %d', self.ah_max_cycle)
         log.info('augmented hessian ah_conv_tol = %g', self.ah_conv_tol)
         log.info('augmented hessian ah_linear dependence = %g', self.ah_lindep)
-        log.info('augmented hessian ah_level shift = %d', self.ah_level_shift)
+        log.info('augmented hessian ah_level shift = %g', self.ah_level_shift)
         log.info('augmented hessian ah_start_tol = %g', self.ah_start_tol)
         log.info('augmented hessian ah_start_cycle = %d', self.ah_start_cycle)
         log.info('augmented hessian ah_grad_trust_region = %g', self.ah_grad_trust_region)

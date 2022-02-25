@@ -4,6 +4,7 @@
 MP2 with k-points sampling
 '''
 
+from functools import reduce
 import numpy
 from pyscf.pbc import gto, scf, mp
 
