@@ -66,6 +66,15 @@ def search_point_group_ops(cell, tol=SYMPREC):
     return rotations
 
 def search_space_group_ops(cell, rotations=None, tol=SYMPREC):
+    '''
+    Search for the allowed space group operations for a specific cell.
+
+    Note:
+        The current implementation treats the cell with the spins on all
+        atoms flipped as the same as the original cell. If this is not desired,
+        then one can use different names for the two sets of atoms and set their
+        magnetic moment to 0.
+    '''
     if rotations is None: rotations = search_point_group_ops(cell, tol=tol)
     a = cell.lattice_vectors()
     coords = cell.get_scaled_positions()
@@ -77,6 +86,7 @@ def search_space_group_ops(cell, rotations=None, tol=SYMPREC):
             has_spin = True
             atmgrp_spin_inv[atm] = atmgrp[atm[:-2]+'_d']
         elif atm[-2:] == '_d':
+            has_spin = True
             atmgrp_spin_inv[atm] = atmgrp[atm[:-2]+'_u']
         else:
             atmgrp_spin_inv[atm] = atmgrp[atm]
@@ -174,7 +184,7 @@ def get_crystal_class(cell, ops=None, tol=SYMPREC):
             elif det == -1:
                 table[maps[-4]] += 1
         else:
-            raise RuntimeError("Input rotation matrix is wrong: %s" % rot)
+            raise ValueError("Input rotation matrix is wrong: %s" % rot)
 
     from pyscf.pbc.symm.tables import CrystalClass, LaueClass
     laue_class = None

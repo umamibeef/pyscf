@@ -50,7 +50,7 @@ def get_Dmat(op, l):
     c1 = XYZ
     c2 = np.dot(inv(op), c1.T).T
     right_handed = _is_right_handed(c2)
-    alpha, beta, gamma = get_euler_angles(c1,c2)
+    alpha, beta, gamma = get_euler_angles(c1, c2)
     D = Dmatrix(l, alpha, beta, gamma, reorder_p=True)
     if not right_handed:
         if l > 7:
@@ -200,13 +200,15 @@ def _get_phase(cell, op, coords_scaled, kpt_scaled, ignore_phase=False):
     coords0 = np.mod(coords0, 1)
     for iatm in range(natm):
         r = coords_scaled[iatm]
-        op_dot_r = op.dot_rot(r - op.inv().trans)
+        #op_dot_r = op.dot_rot(r - op.inv().trans)
+        op_dot_r = op.inv().dot_rot(r) - op.inv().trans
         op_dot_r_0 = np.mod(np.mod(op_dot_r, 1), 1)
         op_dot_r_0 = op_dot_r_0.round(-np.log10(SYMPREC).astype(int))
         op_dot_r_0 = np.mod(op_dot_r_0, 1)
         diff = np.einsum('ki->k', abs(op_dot_r_0 - coords0))
         atm_map[iatm] = np.where(diff < SYMPREC)[0]
-        r_diff = coords_scaled[atm_map[iatm]] - op_dot_r
+        #r_diff = coords_scaled[atm_map[iatm]] - op_dot_r
+        r_diff = op_dot_r_0 - op_dot_r
         #sanity check
         assert(np.linalg.norm(r_diff - r_diff.round()) < SYMPREC)
         if not ignore_phase:
